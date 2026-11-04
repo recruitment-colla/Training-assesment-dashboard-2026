@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Assessment Dashboard — Verma Jewellers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Mulish:wght@400;500;600;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#143d6b; --navy-deep:#0a2240; --gold:#d4af37; --gold-text:#9c7a1e; --gold-soft:#ebd68f;
+  --bg:#f7f8fa; --panel:#ffffff; --line:#e2e5ea; --text:#2c3138; --muted:#545b66; --track:#eef0f3;
+  --pass:#2f7d5b; --fail:#b23b3b; --absent:#c08a1e; --absent-text:#8a6514;
+  --title:var(--navy); --chip-on-bg:var(--navy); --chip-on-text:#fff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0b1626; --panel:#11213a; --line:#23395a; --text:#e6ebf2; --muted:#a9b4c4; --track:#1c3150;
+    --title:#dfe8f4; --gold-text:#dfc05e; --pass:#5fbf8f; --fail:#e07070; --absent:#d9a441; --absent-text:#e3b55a;
+    --chip-on-bg:var(--gold); --chip-on-text:#0a2240;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Mulish',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 24px 64px}
+header.top{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;border-bottom:3px solid var(--gold);padding-bottom:18px}
+.brand{font-family:'Jost','Century Gothic',sans-serif;color:var(--gold-text);font-weight:600;letter-spacing:.14em;font-size:13px}
+h1{font-family:'Jost','Century Gothic',sans-serif;color:var(--title);font-size:clamp(24px,3.4vw,36px);line-height:1.1;margin:6px 0 4px;font-weight:700;letter-spacing:.03em}
+.meta{color:var(--muted);font-size:14px}
+.load{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.drop{display:flex;align-items:center;gap:12px;border:1.5px dashed var(--line);border-radius:10px;padding:10px 14px;background:var(--panel)}
+.drop.over{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,var(--panel))}
+.btn{font:inherit;font-weight:700;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;min-height:42px}
+.btn:hover{background:var(--navy-deep)}
+.btn.ghost{background:transparent;color:var(--title);border:1px solid var(--line)}
+.btn:focus-visible,.chip:focus-visible,select:focus-visible,input:focus-visible,.loc:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.src{font-size:13px;color:var(--muted);text-align:right}
+.src b{color:var(--text)}
+.msg{margin-top:14px;padding:10px 14px;border-radius:8px;font-size:14px;display:none}
+.msg.err{display:block;background:color-mix(in srgb,var(--fail) 12%,var(--panel));color:var(--fail);border:1px solid var(--fail)}
+.msg.ok{display:block;background:color-mix(in srgb,var(--pass) 10%,var(--panel));color:var(--pass);border:1px solid var(--pass)}
+.filters{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:22px}
+.flab{font-size:13px;color:var(--muted);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--chip-on-bg);color:var(--chip-on-text);border-color:var(--chip-on-bg);font-weight:700}
+select,input[type=number],input[type=search]{font:inherit;font-size:14px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:36px}
+input[type=number]{width:72px}
+.linkbtn{font:inherit;font-size:13px;background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;min-height:36px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:10px;padding:14px 16px}
+.kpi.p{border-top-color:var(--pass)} .kpi.f{border-top-color:var(--fail)} .kpi.a{border-top-color:var(--absent)}
+.kpi .l{font-size:13px;color:var(--muted);font-weight:600}
+.kpi .v{font-family:'Jost','Century Gothic',sans-serif;font-size:34px;font-weight:600;line-height:1.15;color:var(--title);font-variant-numeric:tabular-nums}
+.kpi.p .v{color:var(--pass)} .kpi.f .v{color:var(--fail)} .kpi.a .v{color:var(--absent-text)}
+.kpi .n{font-size:12px;color:var(--muted)}
+.take{font-size:16px;margin:4px 0 26px}
+.take b{color:var(--title)}
+h2{font-family:'Jost','Century Gothic',sans-serif;color:var(--title);font-size:21px;margin:0 0 4px;font-weight:600;letter-spacing:.02em}
+.note{color:var(--muted);font-size:13px;margin:0 0 14px}
+section{margin-bottom:30px}
+.locs{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.loc{font:inherit;text-align:left;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0;cursor:pointer;overflow:hidden;display:flex;flex-direction:column}
+.loc[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.loc .hd{background:var(--navy-deep);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.loc .nm{font-family:'Jost','Century Gothic',sans-serif;font-weight:600;letter-spacing:.12em;font-size:14px;color:var(--gold-soft)}
+.loc .emp{font-size:13px;color:#dde8f3}
+.loc .pr{font-family:'Jost','Century Gothic',sans-serif;font-size:38px;font-weight:500;line-height:1;color:var(--gold)}
+.loc .st{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+.loc .st div{padding:10px 8px;text-align:center;font-size:12px;color:var(--muted)}
+.loc .st div+div{border-left:1px solid var(--line)}
+.loc .st b{display:block;font-size:17px;font-variant-numeric:tabular-nums;color:var(--text)}
+.loc .bar{margin:12px 18px 14px}
+.bar{height:8px;background:var(--track);border-radius:999px;overflow:hidden;display:flex;min-width:80px}
+.bar span{height:100%}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:10px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.tw{overflow:auto;max-height:640px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:12px;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:2px solid var(--line);white-space:nowrap;z-index:1}
+td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.num{text-align:right}
+tr.grp td{font-weight:800;background:color-mix(in srgb,var(--navy) 7%,var(--panel));color:var(--title)}
+tr.grand td{font-weight:800;background:var(--navy);color:#fff}
+tr.grand td .bar{background:rgba(255,255,255,.2)}
+tr.sub td:first-child{padding-left:28px}
+.cp{color:var(--pass);font-weight:700} .cf{color:var(--fail);font-weight:700} .ca{color:var(--absent-text);font-weight:700}
+tr.grand .cp,tr.grand .cf,tr.grand .ca{color:#fff}
+.pill{display:inline-block;padding:1px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid currentColor}
+.empty{color:var(--muted);padding:14px;text-align:center}
+.trlink{font:inherit;font-weight:700;color:var(--title);background:none;border:none;padding:0;cursor:pointer;text-align:left;text-decoration:underline;text-decoration-color:var(--gold);text-underline-offset:3px;min-height:32px}
+tr.on td{background:color-mix(in srgb,var(--gold) 14%,var(--panel))}
+.rm{font:inherit;font-size:12px;color:var(--fail);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer}
+.help{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;margin-top:10px}
+.help code{background:var(--track);padding:1px 5px;border-radius:4px;font-size:12px}
+@media (max-width:640px){.load{align-items:stretch;width:100%}.src{text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">VERMA JEWELLERS · TRAINING</div>
+      <h1 id="title">Training assessment dashboard</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="load">
+      <div class="drop" id="drop">
+        <button class="btn" id="pick" type="button">Add training file</button>
+        <span class="meta">or drag &amp; drop .xlsx / .csv here<br>you can add several files</span>
+        <input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
+      </div>
+      <div class="src" id="src"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="linkbtn" id="tplBtn" type="button">Download blank template</button>
+        <button class="linkbtn" id="clearBtn" type="button">Clear all data</button>
+      </div>
+    </div>
+  </header>
+  <div class="msg" id="msg" role="status"></div>
+
+  <div class="filters">
+    <span class="flab">Location</span>
+    <div class="chips" id="locChips" role="group" aria-label="Location"></div>
+    <label class="flab" for="deptSel">Department</label>
+    <select id="deptSel"></select>
+    <label class="flab" for="trSel" id="trLab">Training</label>
+    <select id="trSel"></select>
+    <label class="flab" for="passMark">Pass mark %</label>
+    <input type="number" id="passMark" min="1" max="100" value="70">
+    <button class="linkbtn" id="reset" type="button">Reset filters</button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <p class="take" id="take"></p>
+
+  <section class="card" id="trSection">
+    <h2>Training-wise summary</h2>
+    <p class="note">Every training loaded so far. Click a training name to filter the dashboard to it.</p>
+    <div class="tw" style="max-height:420px">
+      <table>
+        <thead><tr><th>Training</th><th>Dates</th><th class="num">Total employees</th><th class="num">Passed</th><th class="num">Pass %</th><th class="num">Failed</th><th class="num">Fail %</th><th class="num">Not attended</th><th class="num">Not attended %</th><th>Result split</th><th></th></tr></thead>
+        <tbody id="trBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Location-wise summary</h2>
+    <p class="note" id="locNote">Click a location to filter the whole dashboard</p>
+    <div class="locs" id="locs"></div>
+  </section>
+
+  <section class="card">
+    <h2 id="deptTitle">Department-wise results under each location</h2>
+    <p class="note">Location subtotal first, then its departments. Pass %, Fail % and Not attended % are each out of total employees.</p>
+    <div class="legend"><span><i class="sw" style="background:var(--pass)"></i>Passed</span><span><i class="sw" style="background:var(--fail)"></i>Failed</span><span><i class="sw" style="background:var(--absent)"></i>Not attended</span></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Location / department</th><th class="num">Total employees</th><th class="num">Passed</th><th class="num">Pass %</th><th class="num">Failed</th><th class="num">Fail %</th><th class="num">Not attended</th><th class="num">Not attended %</th><th>Result split</th></tr></thead>
+        <tbody id="deptBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" id="dlSummary" type="button">Download this table (CSV)</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Area of improvement — failed or not attended</h2>
+    <p class="note">Follows the filters above</p>
+    <input type="search" id="search" placeholder="Search name or employee ID" aria-label="Search employees" style="width:100%;margin-bottom:10px">
+    <div class="tw">
+      <table>
+        <thead><tr><th>Employee ID</th><th>Name</th><th>Location</th><th>Department</th><th>Training</th><th class="num">Correct</th><th class="num">Score %</th><th>Result</th></tr></thead>
+        <tbody id="impBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px"><button class="btn ghost" id="dlImp" type="button">Download this list (CSV)</button></div>
+  </section>
+
+  <div class="help">
+    <b>How to add trainings:</b> click <b>Add training file</b> (or drop files here) for each training sheet — new or previous. Each file is <b>added</b> to what is already loaded, and the page remembers it in this browser, so next time you open the file your trainings are still there. Loading the same training again replaces its old rows instead of doubling them. One sheet can also hold several trainings if it has a <code>Training Name</code> column. The sheet needs these column headings in any order:
+    <code>Employee ID</code> <code>Employee Name</code> <code>Department</code> <code>Location</code> <code>Attended (Yes/No)</code> <code>Correct Answers</code> <code>Total Questions</code>
+    — and <code>Training Name</code> and <code>Training Date</code> (if Training Name is missing, the file name is used as the training name). Result rule: Attended = No → Not attended; otherwise score ≥ pass mark → Pass, else Fail.
+    Loading Excel needs an internet connection the first time the page opens (for the Excel reader); CSV files always work.
+  </div>
+</div>
+
+<script>
+const SEED = [{"id":"VJS0005","name":"Naresh Dogra","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0006","name":"Sunil Dutt","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0010","name":"Surender Singh","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0011","name":"Rajesh Kumar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":12,"total":20},{"id":"VJS0013","name":"Tapan Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0016","name":"Raghuveer Singh Singh","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"No","correct":0,"total":20},{"id":"VJS0027","name":"Yash Pal Sharma","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0029","name":"Rati Ram","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":18,"total":20},{"id":"VJS0030","name":"Reena Devi","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0038","name":"Sneha Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0039","name":"Shalini Aulakh","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0040","name":"Mona .","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0041","name":"Ajay Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0047","name":"Govind Verma","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"No","correct":0,"total":20},{"id":"VJS0048","name":"Vandana Devi","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0051","name":"Meera Devi","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":15,"total":20},{"id":"VJS0054","name":"Aruna Devi","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":18,"total":20},{"id":"VJS0055","name":"Sapna Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":18,"total":20},{"id":"VJS0064","name":"Sangeeta Kashyap","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0114","name":"Monika Mehta","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0163","name":"Sonal Chauhan","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0171","name":"Rahul Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":17,"total":20},{"id":"VJS0177","name":"Madhu Sehgal","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":18,"total":20},{"id":"VJS0181","name":"Ranjana Chauhan","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0227","name":"Virender Kumar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0228","name":"Muskan .","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":14,"total":20},{"id":"VJS0252","name":"Kritika Panwar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":17,"total":20},{"id":"VJS0255","name":"Richu Kumari","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0265","name":"Geeta Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0277","name":"Babita Babita","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":15,"total":20},{"id":"VJS0278","name":"Sarla Devi","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0285","name":"Aditya  Aditya","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0292","name":"Nihal Kashyap","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0295","name":"Arpit Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":16,"total":20},{"id":"VJS0296","name":"Rakesh Kumar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0297","name":"Shubham Shubham","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0298","name":"Kajal","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0306","name":"Jitender Kashyap","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":17,"total":20},{"id":"VJS0335","name":"Pankaj Vyas","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"No","correct":0,"total":20},{"id":"VJS0337","name":"Kamal Jeet","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":18,"total":20},{"id":"VJS0338","name":"Manoj Kumar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":18,"total":20},{"id":"VJS0340","name":"Rahul Chauhan","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":19,"total":20},{"id":"VJS0343","name":"Gagan Kumar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":16,"total":20},{"id":"VJS0348","name":"Puneet Verma","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-24","attended":"Yes","correct":20,"total":20},{"id":"VJS0351","name":"Hem Lata","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":15,"total":20},{"id":"VJS0355","name":"Nitika Thakur","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":19,"total":20},{"id":"VJS0357","name":"Kuldeep Kumar","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":14,"total":20},{"id":"VJS0001","name":"Madan .","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0033","name":"Jitender Sharma","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":17,"total":20},{"id":"VJS0044","name":"Rajat Kumar","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0065","name":"Kiran Sharma","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":19,"total":20},{"id":"VJS0202","name":"Vipul Sharma","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":15,"total":20},{"id":"VJS0205","name":"Shruti Verma","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":17,"total":20},{"id":"VJS0206","name":"Nek Raj Ranta","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0210","name":"Saurav Dharta","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0211","name":"Shivani Darta","dept":"Accounts","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":17,"total":20},{"id":"VJS0232","name":"Deepika Chauhan","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0244","name":"Preeti .","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0245","name":"Muskan .","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":12,"total":20},{"id":"VJS0276","name":"Sweety Dharta","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0349","name":"Shruti Falta","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":11,"total":20},{"id":"VJS0367","name":"Himani Sharma","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":19,"total":20},{"id":"VJS0004","name":"Sheesh Ram Thakur","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0024","name":"Mukesh Rangarh","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0036","name":"Vaishali Thakur","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0049","name":"Sunil Attri","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0113","name":"Dinesh Kumar","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":15,"total":20},{"id":"VJS0115","name":"Abhishek Abhi Sharma","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0119","name":"Bhupender Singh","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0234","name":"Mrinal .","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":20,"total":20},{"id":"VJS0235","name":"Rajeev Kumar","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":18,"total":20},{"id":"VJS0300","name":"Dishant Thakur","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":18,"total":20},{"id":"VJS0358","name":"Sapna Negi","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":19,"total":20},{"id":"VJS0373","name":"Kajal Chauhan","dept":"Sales","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-26","attended":"Yes","correct":18,"total":20},{"id":"VJS0014","name":"Varun Garg","dept":"Wedding","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0045","name":"Lok Nath","dept":"BTL","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":16,"total":20},{"id":"VJS0066","name":"Sangeeta Chhetri","dept":"BTL","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":17,"total":20},{"id":"VJS0075","name":"Anku Bala","dept":"Jewel Club","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0076","name":"Kajal .","dept":"Jewel Club","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0087","name":"Priyanka .","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":18,"total":20},{"id":"VJS0128","name":"Preeti Thakur","dept":"Jewel Club","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":18,"total":20},{"id":"VJS0137","name":"Kumari Sakshi","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0138","name":"Neeta Sharma","dept":"Jewel Club","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0140","name":"Priti Kumari","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0166","name":"Tamanna Chauhan","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0176","name":"Manoj Kumar","dept":"BTL","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0180","name":"Bhanu Devi","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":17,"total":20},{"id":"VJS0184","name":"Shabhnam Katoch","dept":"NPS","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0189","name":"Preeti Sharma","dept":"NPS","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":18,"total":20},{"id":"VJS0214","name":"Priyanka Thakur","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0250","name":"Kumari Priyanka","dept":"Jewel Club","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":15,"total":20},{"id":"VJS0275","name":"Prachi Singh","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":16,"total":20},{"id":"VJS0288","name":"Nitin","dept":"BTL","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":18,"total":20},{"id":"VJS0310","name":"Sanjay Kumar","dept":"Wedding","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0316","name":"Uday Dutt","dept":"BTL","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":15,"total":20},{"id":"VJS0342","name":"Ankita Thakur","dept":"ASP","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0347","name":"Avantika Negi","dept":"NPS","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":18,"total":20},{"id":"VJS0353","name":"Dharmendra Goyal","dept":"CRM","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":9,"total":20},{"id":"VJS0359","name":"Sakshi Verma","dept":"Wedding","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":18,"total":20},{"id":"VJS0360","name":"Divya Chauhan","dept":"Jewel Club","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0375","name":"Shiv Kumar","dept":"Sales","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0237","name":"Sunita","dept":"HK","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0364","name":"Saurabh Sharma","dept":"Billing","loc":"Exhibition","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":19,"total":20},{"id":"VJS0201","name":"Manisha","dept":"Billing","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0362","name":"Rahul Banolta","dept":"Sales","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0302","name":"Diwakar","dept":"Billing","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20},{"id":"VJS0263","name":"Nikhil","dept":"Accounts","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-25","attended":"Yes","correct":20,"total":20},{"id":"VJS0129","name":"Purnima Thakur","dept":"Cashier","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0071","name":"Manju sharma","dept":"Billing","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0217","name":"Gain sharma","dept":"Admin","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0207","name":"Deepanshu","dept":"Billing","loc":"Solan","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0372","name":"Kuldeep","dept":"BTL","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":20,"total":20},{"id":"VJS0247","name":"Munish kumar","dept":"BTL","loc":"Rohru","training":"Jewel Club New T&C Training","date":"2026-09-30","attended":"Yes","correct":19,"total":20}];
+const SEED_NAME = 'Training_Calander_-_Q3FY27.xlsx (built in)';
+
+let DATA = [];
+const state = {loc:'All', dept:'All', training:'All', pass:0.7, q:''};
+const $ = (id) => document.getElementById(id);
+const fInt = (n) => n.toLocaleString('en-IN');
+const fPct = (x) => (isFinite(x) ? (x*100).toFixed(1) : '0.0') + '%';
+const el = (tag, props={}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); for (const k of kids) e.append(k); return e; };
+
+/* ---------- reading files ---------- */
+const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const FIELDS = {
+  id: ['employeeid','empid','employeecode','empcode','id'],
+  name: ['employeename','name','empname'],
+  dept: ['department','dept'],
+  loc: ['location','branch','store'],
+  training: ['trainingname','training','topic'],
+  date: ['trainingdate','date'],
+  attended: ['attendedyesno','attended','attendance','present'],
+  correct: ['correctanswers','correct','marks','marksobtained'],
+  total: ['totalquestions','totalmarks','outof','total'],
+  score: ['score','scorepercent','scorepct','percentage']
+};
+function findHeader(rows){
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const keys = rows[i].map(norm);
+    if (keys.some(k => FIELDS.id.includes(k)) && keys.some(k => FIELDS.dept.includes(k))) return i;
+  }
+  return -1;
+}
+function mapRows(rows){
+  const h = findHeader(rows);
+  if (h < 0) throw new Error('Could not find a header row with "Employee ID" and "Department".');
+  const keys = rows[h].map(norm);
+  const col = {};
+  for (const [f, names] of Object.entries(FIELDS)) {
+    for (const n of names) { const i = keys.indexOf(n); if (i >= 0) { col[f] = i; break; } }
+  }
+  const need = ['id','dept','loc','attended'];
+  const miss = need.filter(f => col[f] === undefined);
+  if (miss.length) throw new Error('Missing column(s): ' + miss.map(m => ({id:'Employee ID',dept:'Department',loc:'Location',attended:'Attended (Yes/No)'}[m])).join(', '));
+  if (col.correct === undefined && col.score === undefined) throw new Error('Need either "Correct Answers" + "Total Questions" or a "Score" column.');
+  const out = [];
+  for (const r of rows.slice(h + 1)) {
+    const g = (f) => col[f] === undefined ? '' : r[col[f]];
+    const id = String(g('id') ?? '').trim();
+    if (!id) continue;
+    let correct = Number(g('correct')), total = Number(g('total'));
+    let score;
+    if (col.correct !== undefined && isFinite(correct) && total > 0) score = correct / total;
+    else { let s = Number(String(g('score')).replace('%','')); score = s > 1 ? s/100 : s; }
+    let d = g('date');
+    if (d instanceof Date) { const x = new Date(d.getTime() + 12*3600*1000); d = x.toISOString().slice(0,10); }
+    out.push({
+      id, name: String(g('name') ?? '').trim(),
+      dept: String(g('dept') ?? '').trim() || '(blank)',
+      loc: String(g('loc') ?? '').trim() || '(blank)',
+      training: String(g('training') ?? '').trim(), trainingFromSheet: !!String(g('training') ?? '').trim(),
+      date: d ? String(d) : '',
+      attended: String(g('attended') ?? '').trim(),
+      correct: isFinite(correct) ? correct : null, total: total > 0 ? total : null,
+      score: isFinite(score) ? score : 0
+    });
+  }
+  if (!out.length) throw new Error('No employee rows found under the header.');
+  return out;
+}
+
+
+function showMsg(text, kind){ const m = $('msg'); m.className = 'msg ' + kind; m.textContent = text; if (kind === 'ok') setTimeout(() => { m.className = 'msg'; }, 5000); }
+
+const STORE_KEY = 'vj-training-dashboard-v1';
+function saveStore(){ try { localStorage.setItem(STORE_KEY, JSON.stringify({rows: DATA, files: FILES})); } catch (e) {} }
+function readStore(){ try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (s && Array.isArray(s.rows) && s.rows.length) return s; } catch (e) {} return null; }
+let FILES = [];
+const keyOf = (r) => r.training + '|' + r.date + '|' + r.id;
+
+function mergeRows(newRows, fileName){
+  const fallback = fileName.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
+  newRows.forEach(r => { if (!r.trainingFromSheet) r.training = fallback || 'Training'; delete r.trainingFromSheet; });
+  // a training loaded again replaces its earlier rows
+  const incoming = new Set(newRows.map(r => r.training));
+  const kept = DATA.filter(r => !incoming.has(r.training));
+  const seen = new Set(); const uniqRows = [];
+  for (const r of newRows) { const k = keyOf(r); if (!seen.has(k)) { seen.add(k); uniqRows.push(r); } }
+  DATA = kept.concat(uniqRows);
+  FILES = FILES.filter(f => f.name !== fileName).concat([{name: fileName, rows: uniqRows.length, trainings: [...incoming], at: new Date().toISOString()}]);
+  return {added: uniqRows.length, trainings: [...incoming]};
+}
+
+function readOne(file){
+  return new Promise((resolve, reject) => {
+    const isCsv = /\.csv$/i.test(file.name);
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(file.name + ': could not read the file.'));
+    reader.onload = () => {
+      try {
+        let rows;
+        if (isCsv && typeof XLSX === 'undefined') rows = parseCsv(reader.result);
+        else {
+          if (typeof XLSX === 'undefined') throw new Error('The Excel reader did not load (no internet?). Save the sheet as CSV and add that instead.');
+          const wb = isCsv ? XLSX.read(reader.result, {type:'string', cellDates:true}) : XLSX.read(new Uint8Array(reader.result), {type:'array', cellDates:true});
+          let found = null;
+          for (const n of wb.SheetNames) {
+            const r = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:''});
+            if (findHeader(r) >= 0) { found = r; break; }
+          }
+          if (!found) throw new Error('No sheet has an "Employee ID" and "Department" header.');
+          rows = found;
+        }
+        resolve(mapRows(rows));
+      } catch (e) { reject(new Error(file.name + ': ' + e.message)); }
+    };
+    if (isCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  });
+}
+
+async function loadFiles(list){
+  const files = [...list]; const done = [], errs = [];
+  if (SEEDED) { DATA = []; FILES = []; SEEDED = false; }
+  for (const f of files) {
+    try { const rows = await readOne(f); const m = mergeRows(rows, f.name); done.push(`${f.name} (${fInt(m.added)} rows: ${m.trainings.join(', ')})`); }
+    catch (e) { errs.push(e.message); }
+  }
+  if (done.length) { saveStore(); state.loc = 'All'; state.dept = 'All'; state.training = 'All'; render(); }
+  if (errs.length) showMsg(errs.join('  |  ') + (done.length ? '  —  Added: ' + done.join('; ') : ''), 'err');
+  else showMsg('Added ' + done.join('; ') + '.', 'ok');
+}
+function showSource(){
+  const s = $('src'); s.textContent = '';
+  const trainings = new Set(DATA.map(r => r.training)).size;
+  if (SEEDED) s.append('Data: ', el('b', {textContent: SEED_NAME}), ` · ${fInt(DATA.length)} rows`);
+  else s.append(el('b', {textContent: `${trainings} training${trainings === 1 ? '' : 's'}`}), ` · ${fInt(DATA.length)} rows from ${FILES.length} file${FILES.length === 1 ? '' : 's'} · saved in this browser`);
+}
+function parseCsv(text){
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i+1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+$('pick').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', (e) => { if (e.target.files.length) loadFiles(e.target.files); e.target.value = ''; });
+const drop = $('drop');
+['dragenter','dragover'].forEach(t => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t => document.addEventListener(t, (e) => { e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) drop.classList.remove('over'); }));
+document.addEventListener('drop', (e) => { const f = e.dataTransfer?.files; if (f && f.length) loadFiles(f); });
+
+/* ---------- calculations ---------- */
+const statusOf = (r) => /^n/i.test(r.attended) ? 'Not Attended' : (r.score >= state.pass - 1e-9 ? 'Pass' : 'Fail');
+function summarise(rows){
+  const o = {total: rows.length, passed: 0, failed: 0, absent: 0};
+  for (const r of rows) { const s = statusOf(r); if (s === 'Pass') o.passed++; else if (s === 'Fail') o.failed++; else o.absent++; }
+  o.passPct = o.total ? o.passed / o.total : 0; o.failPct = o.total ? o.failed / o.total : 0; o.absPct = o.total ? o.absent / o.total : 0;
+  return o;
+}
+const uniq = (arr) => [...new Set(arr)];
+const byCount = (rows, key) => { const m = {}; rows.forEach(r => m[r[key]] = (m[r[key]] || 0) + 1); return Object.keys(m).sort((a, b) => m[b] - m[a] || a.localeCompare(b)); };
+
+function stackBar(o){
+  const b = el('div', {className:'bar'});
+  [[o.passed,'var(--pass)'],[o.failed,'var(--fail)'],[o.absent,'var(--absent)']].forEach(([v,c]) => { if (v) { const s = el('span'); s.style.width = (v/o.total*100)+'%'; s.style.background = c; b.append(s); } });
+  return b;
+}
+
+/* ---------- render ---------- */
+let lastTable = [], lastImp = [];
+function render(){
+  const trainings = byCount(DATA, 'training');
+  if (!trainings.includes(state.training)) state.training = 'All';
+  const base = DATA.filter(r => state.training === 'All' || r.training === state.training);
+  const locs = byCount(base, 'loc');
+  if (state.loc !== 'All' && !locs.includes(state.loc)) state.loc = 'All';
+  const inLoc = base.filter(r => state.loc === 'All' || r.loc === state.loc);
+  const depts = uniq(inLoc.map(r => r.dept)).sort();
+  if (!depts.includes(state.dept)) state.dept = 'All';
+  const cur = inLoc.filter(r => state.dept === 'All' || r.dept === state.dept);
+
+  showSource();
+  // header meta
+  const dates = base.map(r => r.date).filter(Boolean).sort();
+  $('title').textContent = (state.training !== 'All' ? state.training : (trainings.length === 1 ? trainings[0] : 'All trainings')) + ' — location-wise assessment results';
+  $('meta').textContent = (dates.length ? `Assessment dates ${dates[0]} to ${dates[dates.length-1]}` : '') + ` · pass mark ${Math.round(state.pass*100)}%`;
+
+  // filters
+  const chips = $('locChips'); chips.textContent = '';
+  for (const l of ['All', ...locs]) {
+    const b = el('button', {type:'button', className:'chip', textContent: l === 'All' ? 'All locations' : l});
+    b.setAttribute('aria-pressed', String(state.loc === l));
+    b.onclick = () => { state.loc = l; render(); };
+    chips.append(b);
+  }
+  const ds = $('deptSel'); ds.replaceChildren(new Option('All departments','All'), ...depts.map(d => new Option(d, d))); ds.value = state.dept;
+  const ts = $('trSel'); ts.replaceChildren(new Option('All trainings','All'), ...trainings.map(t => new Option(t, t))); ts.value = state.training;
+  const showTr = trainings.length > 1; ts.style.display = $('trLab').style.display = showTr ? '' : 'none';
+
+  // KPIs
+  const s = summarise(cur);
+  const scope = (state.loc === 'All' ? 'All locations' : state.loc) + ' · ' + (state.dept === 'All' ? 'all departments' : state.dept);
+  const K = [['Total employees', fInt(s.total), scope, ''], ['Passed', fInt(s.passed), `Scored ${Math.round(state.pass*100)}% or more`, 'p'], ['Pass %', fPct(s.passPct), 'Passed ÷ total', 'p'],
+             ['Failed', fInt(s.failed), 'Attended, below pass mark', 'f'], ['Fail %', fPct(s.failPct), 'Failed ÷ total', 'f'],
+             ['Not attended', fInt(s.absent), 'Absent from assessment', 'a'], ['Not attended %', fPct(s.absPct), 'Not attended ÷ total', 'a']];
+  $('kpis').replaceChildren(...K.map(([l, v, n, c]) => el('div', {className:'kpi ' + c}, el('div', {className:'l', textContent:l}), el('div', {className:'v', textContent:v}), el('div', {className:'n', textContent:n}))));
+  const tk = $('take'); tk.textContent = '';
+  if (s.total) {
+    const weak = byCount(cur.filter(r => statusOf(r) !== 'Pass'), 'dept');
+    tk.append(el('b', {textContent: fInt(s.passed)}), ` of ${fInt(s.total)} employees passed (`, el('b', {textContent: fPct(s.passPct)}), `) — ${fInt(s.failed)} failed and ${fInt(s.absent)} did not attend.`,
+      weak.length ? ` Improvement needed in: ${weak.join(', ')}.` : ' Everyone in this selection passed.');
+  } else tk.textContent = 'No employees match these filters.';
+
+  // training-wise summary
+  const trb = $('trBody'); trb.textContent = '';
+  const allTr = byCount(DATA, 'training');
+  for (const tn of allTr) {
+    const rows = DATA.filter(r => r.training === tn);
+    const o = summarise(rows);
+    const ds2 = rows.map(r => r.date).filter(Boolean).sort();
+    const tr = el('tr', {className: state.training === tn ? 'on' : ''});
+    const nb = el('button', {type:'button', className:'trlink', textContent: tn});
+    nb.onclick = () => { state.training = state.training === tn ? 'All' : tn; state.loc = 'All'; state.dept = 'All'; render(); };
+    const c0 = el('td'); c0.append(nb); tr.append(c0);
+    const td = (x, c) => tr.append(el('td', {className: c || '', textContent: x}));
+    td(ds2.length ? (ds2[0] === ds2[ds2.length-1] ? ds2[0] : ds2[0] + ' to ' + ds2[ds2.length-1]) : '—');
+    td(fInt(o.total), 'num'); td(fInt(o.passed), 'num');
+    td(fPct(o.passPct), 'num ' + (o.passPct >= 0.9 ? 'cp' : o.passPct >= 0.7 ? 'ca' : 'cf'));
+    td(fInt(o.failed), 'num' + (o.failed ? ' cf' : '')); td(fPct(o.failPct), 'num' + (o.failed ? ' cf' : ''));
+    td(fInt(o.absent), 'num' + (o.absent ? ' ca' : '')); td(fPct(o.absPct), 'num' + (o.absent ? ' ca' : ''));
+    const cb = el('td'); cb.append(stackBar(o)); tr.append(cb);
+    const cr = el('td');
+    if (!SEEDED) { const rb = el('button', {type:'button', className:'rm', textContent:'Remove'}); rb.setAttribute('aria-label', 'Remove ' + tn);
+      rb.onclick = () => { if (!confirmRemove(tn)) return; DATA = DATA.filter(r => r.training !== tn); FILES = FILES.map(f => ({...f, trainings: f.trainings.filter(x => x !== tn)})).filter(f => f.trainings.length); if (state.training === tn) state.training = 'All'; saveStore(); if (!DATA.length) startSeed(); render(); };
+      cr.append(rb); }
+    tr.append(cr);
+    trb.append(tr);
+  }
+
+  // location cards
+  $('locNote').textContent = 'Click a location to filter the whole dashboard' + (state.dept === 'All' ? '' : ` · showing ${state.dept} only`);
+  const lc = $('locs'); lc.textContent = '';
+  for (const l of locs) {
+    const o = summarise(base.filter(r => r.loc === l && (state.dept === 'All' || r.dept === state.dept)));
+    const b = el('button', {type:'button', className:'loc'});
+    b.setAttribute('aria-pressed', String(state.loc === l));
+    b.onclick = () => { state.loc = state.loc === l ? 'All' : l; render(); };
+    b.append(
+      el('div', {className:'hd'}, el('div', {}, el('div', {className:'nm', textContent:l.toUpperCase()}), el('div', {className:'emp', textContent:`${fInt(o.total)} employees`})), el('div', {className:'pr', textContent: o.total ? fPct(o.passPct) : '—'})),
+      el('div', {className:'st'},
+        el('div', {}, el('b', {className:'cp', textContent:`${fInt(o.passed)}`}), `Pass · ${fPct(o.passPct)}`),
+        el('div', {}, el('b', {className: o.failed ? 'cf' : '', textContent:`${fInt(o.failed)}`}), `Fail · ${fPct(o.failPct)}`),
+        el('div', {}, el('b', {className: o.absent ? 'ca' : '', textContent:`${fInt(o.absent)}`}), `Absent · ${fPct(o.absPct)}`)),
+      el('div', {className:'bar-wrap'}, (() => { const x = stackBar(o); x.classList.add('bar'); x.style.margin = '12px 18px 14px'; return x; })())
+    );
+    lc.append(b);
+  }
+
+  // grouped department table
+  $('deptTitle').textContent = state.loc === 'All' ? 'Department-wise results under each location' : `Department-wise results — ${state.loc}`;
+  const tb = $('deptBody'); tb.textContent = ''; lastTable = [];
+  const line = (label, o, cls, locName, deptName) => {
+    const tr = el('tr', {className: cls || ''});
+    const td = (t, c) => tr.append(el('td', {className: c || '', textContent: t}));
+    td(label); td(fInt(o.total), 'num'); td(fInt(o.passed), 'num');
+    td(fPct(o.passPct), 'num ' + (o.passPct >= 0.9 ? 'cp' : o.passPct >= 0.7 ? 'ca' : 'cf'));
+    td(fInt(o.failed), 'num' + (o.failed ? ' cf' : '')); td(fPct(o.failPct), 'num' + (o.failed ? ' cf' : ''));
+    td(fInt(o.absent), 'num' + (o.absent ? ' ca' : '')); td(fPct(o.absPct), 'num' + (o.absent ? ' ca' : ''));
+    const c = el('td'); c.append(stackBar(o)); tr.append(c); tb.append(tr);
+    lastTable.push([locName, deptName, o.total, o.passed, fPct(o.passPct), o.failed, fPct(o.failPct), o.absent, fPct(o.absPct)]);
+  };
+  const showLocs = state.loc === 'All' ? locs : [state.loc];
+  for (const l of showLocs) {
+    const lr = base.filter(r => r.loc === l && (state.dept === 'All' || r.dept === state.dept));
+    if (!lr.length) continue;
+    line(`${l} — ${state.dept === 'All' ? 'total' : state.dept}`, summarise(lr), 'grp', l, state.dept === 'All' ? 'All' : state.dept);
+    if (state.dept === 'All') for (const d of byCount(lr, 'dept')) line(d, summarise(lr.filter(r => r.dept === d)), 'sub', l, d);
+  }
+  if (state.loc === 'All' && cur.length) line('Grand total' + (state.dept === 'All' ? '' : ` — ${state.dept}`), s, 'grand', 'All', state.dept);
+  if (!tb.children.length) tb.append(el('tr', {}, Object.assign(el('td', {className:'empty', textContent:'No employees match these filters.'}), {colSpan: 9})));
+
+  // improvement list
+  const ib = $('impBody'); ib.textContent = '';
+  lastImp = cur.filter(r => statusOf(r) !== 'Pass')
+    .filter(r => !state.q || (r.id + ' ' + r.name).toLowerCase().includes(state.q))
+    .sort((a, b) => { const sa = statusOf(a), sb = statusOf(b); return sa === sb ? a.score - b.score : (sa === 'Fail' ? -1 : 1); });
+  for (const r of lastImp) {
+    const st = statusOf(r);
+    const tr = el('tr');
+    [r.id, r.name, r.loc, r.dept, r.training].forEach(t => tr.append(el('td', {textContent: t})));
+    tr.append(el('td', {className:'num', textContent: r.correct == null ? '—' : `${r.correct}${r.total ? ' / ' + r.total : ''}`}));
+    tr.append(el('td', {className:'num', textContent: (r.score*100).toFixed(1)}));
+    const c = el('td'); c.append(el('span', {className:'pill ' + (st === 'Fail' ? 'cf' : 'ca'), textContent: st})); tr.append(c);
+    ib.append(tr);
+  }
+  if (!lastImp.length) ib.append(el('tr', {}, Object.assign(el('td', {className:'empty', textContent: cur.length ? 'Everyone in this selection passed.' : 'No employees match these filters.'}), {colSpan: 8})));
+}
+
+/* ---------- controls ---------- */
+$('deptSel').onchange = (e) => { state.dept = e.target.value; render(); };
+$('trSel').onchange = (e) => { state.training = e.target.value; render(); };
+$('passMark').oninput = (e) => { const v = Number(e.target.value); if (v >= 1 && v <= 100) { state.pass = v / 100; render(); } };
+$('search').oninput = (e) => { state.q = e.target.value.toLowerCase(); render(); };
+$('reset').onclick = () => { state.loc = 'All'; state.dept = 'All'; state.training = 'All'; state.q = ''; $('search').value = ''; render(); };
+
+function downloadCsv(name, header, rows){
+  const esc = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const text = [header, ...rows].map(r => r.map(esc).join(',')).join('\r\n');
+  const a = el('a', {href: URL.createObjectURL(new Blob(['\ufeff' + text], {type:'text/csv'})), download: name});
+  document.body.append(a); a.click(); a.remove();
+}
+$('dlSummary').onclick = () => downloadCsv('location_department_summary.csv', ['Location','Department','Total employees','Passed','Pass %','Failed','Fail %','Not attended','Not attended %'], lastTable);
+$('dlImp').onclick = () => downloadCsv('improvement_list.csv', ['Employee ID','Name','Location','Department','Training','Correct','Total','Score %','Result'], lastImp.map(r => [r.id, r.name, r.loc, r.dept, r.training, r.correct, r.total, (r.score*100).toFixed(1), statusOf(r)]));
+
+/* ---------- start ---------- */
+let SEEDED = false;
+let pendingRemove = null;
+function confirmRemove(tn){
+  // two clicks within 4 s confirm, without a browser dialog
+  if (pendingRemove === tn) { pendingRemove = null; return true; }
+  pendingRemove = tn; showMsg(`Click Remove again to delete “${tn}” from the dashboard.`, 'err');
+  setTimeout(() => { if (pendingRemove === tn) pendingRemove = null; }, 4000);
+  return false;
+}
+function startSeed(){
+  DATA = SEED.map(r => ({...r, score: r.total ? r.correct / r.total : 0})); FILES = []; SEEDED = true;
+}
+let armedClear = false;
+$('clearBtn').onclick = () => {
+  if (!armedClear) { armedClear = true; $('clearBtn').textContent = 'Click again to clear everything'; setTimeout(() => { armedClear = false; $('clearBtn').textContent = 'Clear all data'; }, 4000); return; }
+  armedClear = false; $('clearBtn').textContent = 'Clear all data';
+  try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+  startSeed(); state.loc = 'All'; state.dept = 'All'; state.training = 'All'; render();
+  showMsg('Cleared all added trainings. Showing the built-in Jewel Club data again.', 'ok');
+};
+$('tplBtn').onclick = () => downloadCsv('training_assessment_template.csv',
+  ['Employee ID','Employee Name','Department','Location','Training Name','Assessment type','Training Date','Attended (Yes/No)','Correct Answers','Total Questions'],
+  [['VJS0001','Example Name','Sales','Solan','Gold Rate Policy Training','Post Assesment','2026-07-15','Yes',17,20]]);
+
+const saved = readStore();
+if (saved) { DATA = saved.rows; FILES = saved.files || []; }
+else startSeed();
+render();
+</script>
+</body>
+</html>
